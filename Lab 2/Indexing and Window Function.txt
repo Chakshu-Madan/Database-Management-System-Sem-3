@@ -1,0 +1,70 @@
+Q1. The reports in this lab repeatedly filter and group the exam table by
+    course_id. Create a B-tree index named idx_exam_course_id on that column.
+
+Ans1. CREATE INDEX idx_exam_course_id
+      ON exam (course_id);
+
+Q2. Rank students by marks within each course, highest first. Students with
+    identical marks in the same course must receive the same rank, and the next
+    rank must be skipped. Show course_id, student_id, marks and course rank.
+    Sort by course_id, then course_rank, then student_id.
+
+Ans2. SELECT 
+      course_id,
+      student_id,
+      marks,
+      RANK() OVER (
+         PARTITION BY course_id
+         ORDER BY marks DESC 
+      ) AS course_rank
+      FROM exam
+      ORDER BY course_id, course_rank, student_id;
+
+Q3. Using a WITH clause containing at least three CTEs, build one row per course
+    that has exam records, showing:
+
+    total_students   - how many students appeared
+    above_avg_count  - how many scored strictly above that course's own average;
+                     show 0 if none did
+    pass_percentage  - the percentage scoring 40 or above, rounded to two
+                     decimal places
+
+    Sort by course_id.
+
+Ans3. WITH exam_data AS (
+        SELECT course_id, student_id, marks
+        FROM exam
+        ),
+ 
+      course_avg AS (
+        SELECT course_id, AVG(marks)
+      AS avg_marks
+        FROM exam_data
+        GROUP BY course_id
+      ),
+
+      course_stats AS (
+        SELECT course_id,
+          COUNT(DISTINCT student_id) AS total_students,
+          SUM(CASE WHEN marks >= 40 THEN 1 ELSE 0 END) AS passed_students,
+          COUNT(*) AS total_exams
+          FROM exam_data
+          GROUP BY course_id
+      ),
+
+      above_avg AS (
+        SELECT e.course_id,
+        COUNT(DISTINCT CASE WHEN e.marks > a.avg_marks THEN e.student_id END) AS above_avg_count
+        FROM exam_data e
+        JOIN course_avg a ON e.course_id = a.course_id
+        GROUP BY e.course_id
+      )
+
+      SELECT s.course_id, s.total_students,
+      COALESCE(a.above_avg_count, 0) AS above_avg_count, 
+        ROUND(
+          (s.passed_students * 100.0) / s.total_exams, 2
+      ) AS pass_percentage 
+      FROM course_stats s 
+      LEFT JOIN above_avg a ON s.course_id = a.course_id
+      ORDER BY s.course_id;
