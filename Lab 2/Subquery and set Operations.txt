@@ -1,0 +1,39 @@
+Q1. Using a subquery - not a JOIN - list the student_id and name of every student
+    who has no exam record at all. Sort by student_id.
+
+Ans1. SELECT student_id, name
+      FROM student
+      WHERE student_id NOT IN (
+         SELECT student_id
+         FROM exam
+      )
+      ORDER BY student_id;
+
+Q2. Using INTERSECT, list the student_id of every student who both scored 85 or
+    above in at least one exam and appeared for course 201. Sort ascending.
+
+Ans2. SELECT student_id
+      FROM exam
+      WHERE marks >= 85
+
+      INTERSECT 
+
+      SELECT student_id
+      FROM exam
+      WHERE course_id = 201
+      ORDER BY student_id;
+
+Q3. Create a view named course_report that shows, for every course with at least one exam record, the course_id, the course_name, and the average marks rounded to two decimal places as average_marks.
+
+Ans3. CREATE VIEW course_report AS 
+      SELECT 
+         c.course_id,
+         c.course_name,
+         ROUND(AVG(e.marks), 2) AS average_marks
+      FROM 
+         course c 
+      JOIN 
+         exam e ON c.course_id = e.course_id
+      GROUP BY 
+         c.course_id,
+         c.course_name;
